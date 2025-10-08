@@ -321,14 +321,14 @@
       return { compact, token };
     }
 
-    // Simple toast
-    function toast(msg){
-      const el = document.createElement('div');
-      el.textContent = msg;
-      el.className = 'fixed bottom-4 right-4 bg-slate-900 text-white text-sm px-3 py-2 rounded-xl shadow';
-      document.body.appendChild(el);
-      setTimeout(()=> el.remove(), 1200);
-    }
+   // Simple toast
+function toast(msg){
+  const el = document.createElement('div')
+  el.textContent = msg
+  el.className = 'fixed bottom-4 right-4 bg-slate-900 text-white text-sm px-3 py-2 rounded-xl shadow'
+  document.body.appendChild(el)
+  setTimeout(()=> el.remove(), 1200)
+}
 
     // Events
     $("build").addEventListener("click", buildPayload);
