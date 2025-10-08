@@ -315,7 +315,7 @@
         .replaceAll("+", "-")
         .replaceAll("/", "_")
         .replace(/=+$/, "");
-      const token = SOLARROI::${b64};
+      const token = "SOLARROI::" + b64;
       $("tokenOut").textContent = token;
 
       return { compact, token };
