@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Solar ROI – Payload Builder</title>
+  <meta name="description" content="Build copy-paste payload strings for Solar ROI reports (Pay As You Save vs Cash, Solar Plan Cash, Solar Plan Loan).">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <main class="max-w-5xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-3xl font-bold">Solar ROI – Payload Builder</h1>
+      <p class="text-sm text-slate-600 mt-2">
+        Create a compact, copy-and-paste string with your client’s inputs. Paste the string back to ChatGPT and start your message with:
+        <span class="font-mono bg-slate-100 px-1 py-0.5 rounded">RUN SOLAR REPORT: &lt;your_string&gt;</span>
+      </p>
+    </header>
+
+    <section class="grid md:grid-cols-2 gap-6 items-start">
+      <form id="form" class="space-y-4 bg-white rounded-2xl p-4 shadow">
+        <!-- Top row: client + model + preset -->
+        <div class="grid sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium">Client name</label>
+            <input id="client" class="mt-1 w-full rounded-xl border p-2" placeholder="Richard Denby" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Model</label>
+            <select id="model" class="mt-1 w-full rounded-xl border p-2">
+              <option value="PayAsYouSaveVsCash">Pay As You Save vs Cash (comparison)</option>
+              <option value="SolarPlanCash">Solar Plan Cash (buy outright)</option>
+              <option value="SolarPlanLoan">Solar Plan Loan (finance system)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Quick preset</label>
+            <select id="preset" class="mt-1 w-full rounded-xl border p-2">
+              <option value="paysave">Preset: Pay As You Save vs Cash (30y, £, batt 10&20)</option>
+              <option value="cash">Preset: Solar Plan Cash (30y, £, batt 10&20, plan ends 25)</option>
+              <option value="loan">Preset: Solar Plan Loan (30y, £, 11.9%/15y, batt 10&20, plan ends 25)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Currency + core money fields -->
+        <div class="grid sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium">Currency</label>
+            <input id="currency" class="mt-1 w-full rounded-xl border p-2" value="£" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Principal / System cost</label>
+            <input id="principal" type="number" class="mt-1 w-full rounded-xl border p-2" value="16000" min="0" step="1" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Starting annual savings</label>
+            <input id="saving0" type="number" class="mt-1 w-full rounded-xl border p-2" value="1500" min="0" step="1" />
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium">Savings growth (% p.a.)</label>
+            <input id="saving_growth" type="number" class="mt-1 w-full rounded-xl border p-2" value="7.5" step="0.1" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Pay As You Save – monthly (yr 1)</label>
+            <input id="payg_monthly0" type="number" class="mt-1 w-full rounded-xl border p-2" value="140" min="0" step="1" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Pay As You Save – escalation (% p.a.)</label>
+            <input id="payg_growth" type="number" class="mt-1 w-full rounded-xl border p-2" value="2.5" step="0.1" />
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium">Plan duration (years)</label>
+            <input id="plan_years" type="number" class="mt-1 w-full rounded-xl border p-2" value="15" min="1" step="1" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Battery cost each (cash only)</label>
+            <input id="battery_cost" type="number" class="mt-1 w-full rounded-xl border p-2" value="5000" min="0" step="1" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Battery years (comma-sep)</label>
+            <input id="battery_years" class="mt-1 w-full rounded-xl border p-2" value="10,20" />
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-medium">Savings account rate (% p.a.)</label>
+            <input id="savings_rate" type="number" class="mt-1 w-full rounded-xl border p-2" value="4" step="0.1" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Horizon (years)</label>
+            <input id="horizon" type="number" class="mt-1 w-full rounded-xl border p-2" value="30" min="1" step="1" />
+          </div>
+          <div class="flex items-end gap-2">
+            <input id="reinvest" type="checkbox" class="h-4 w-4 mb-1" />
+            <label for="reinvest" class="text-sm">Reinvest annual cashflows (default off)</label>
+          </div>
+        </div>
+
+        <!-- Loan-only fields -->
+        <div id="loanRow" class="grid sm:grid-cols-2 gap-3 hidden">
+          <div>
+            <label class="block text-sm font-medium">Loan APR (% p.a.)</label>
+            <input id="loan_apr" type="number" class="mt-1 w-full rounded-xl border p-2" value="11.9" step="0.1" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Loan term (years)</label>
+            <input id="loan_years" type="number" class="mt-1 w-full rounded-xl border p-2" value="15" min="1" step="1" />
+          </div>
+        </div>
+
+        <!-- “Plan ends” toggle for 25-year stop -->
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div class="flex items-center gap-2">
+            <input id="plan_ends_25" type="checkbox" class="h-4 w-4" />
+            <label for="plan_ends_25" class="text-sm">Plan ends at year 25 (savings continue)</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="include_batt_cash" type="checkbox" class="h-4 w-4" checked />
+            <label for="include_batt_cash" class="text-sm">Include battery costs on Cash path</label>
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <button id="build" type="button" class="rounded-2xl px-4 py-2 bg-slate-900 text-white shadow">Build payload</button>
+          <button id="reset" type="button" class="rounded-2xl px-4 py-2 bg-white border ml-2">Reset</button>
+          <button id="applyPreset" type="button" class="rounded-2xl px-4 py-2 bg-white border ml-2">Apply preset</button>
+        </div>
+      </form>
+
+      <aside class="space-y-4">
+        <div class="p-4 bg-white rounded-2xl shadow">
+          <h2 class="font-semibold mb-2">Compact JSON</h2>
+          <pre id="jsonOut" class="text-xs whitespace-pre-wrap select-all"></pre>
+          <div class="mt-3 flex gap-2">
+            <button id="copyJson" class="rounded-xl px-3 py-1.5 bg-slate-800 text-white">Copy JSON</button>
+          </div>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl shadow">
+          <h2 class="font-semibold mb-2">Single paste string</h2>
+          <p class="text-xs text-slate-600 mb-1">Paste into chat, starting your message with <span class="font-mono">RUN SOLAR REPORT:</span></p>
+          <pre id="tokenOut" class="text-xs whitespace-pre-wrap select-all"></pre>
+          <div class="mt-3 flex gap-2">
+            <button id="copyToken" class="rounded-xl px-3 py-1.5 bg-slate-800 text-white">Copy String</button>
+          </div>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl shadow">
+          <h2 class="font-semibold mb-2">Paste & decode (optional)</h2>
+          <textarea id="pasteIn" class="w-full h-24 rounded-xl border p-2 text-xs" placeholder="Paste a SOLARROI token here to preview"></textarea>
+          <div class="mt-2">
+            <button id="decode" class="rounded-xl px-3 py-1.5 bg-white border">Decode</button>
+          </div>
+          <pre id="decoded" class="mt-2 text-xs whitespace-pre-wrap"></pre>
+        </div>
+
+        <div class="p-4 bg-white rounded-2xl shadow text-sm text-slate-600">
+          <h3 class="font-semibold mb-2">How to use</h3>
+          <ol class="list-decimal ml-4 space-y-1">
+            <li>Pick a <b>Quick preset</b> and click <b>Apply preset</b>, or fill fields manually.</li>
+            <li>Click <b>Build payload</b> → then <b>Copy String</b>.</li>
+            <li>Paste into ChatGPT with: <span class="font-mono">RUN SOLAR REPORT: SOLARROI::...</span></li>
+          </ol>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    // Presets reflecting your saved defaults
+    const PRESETS = {
+      paysave: {
+        model: "PayAsYouSaveVsCash",
+        currency: "£",
+        principal: 16000,
+        saving0: 1500,
+        saving_growth: 7.5,
+        payg_monthly0: 140,
+        payg_growth: 2.5,
+        plan_years: 15,
+        battery_cost: 5000,
+        battery_years: [10, 20],
+        savings_rate: 4,
+        horizon: 30,
+        reinvest: false,
+        plan_ends_25: false,    // plan duration is 15y in this preset
+        include_batt_cash: true,
+        loan_apr: 11.9,
+        loan_years: 15
+      },
+      cash: {
+        model: "SolarPlanCash",
+        currency: "£",
+        principal: 16000,
+        saving0: 1500,
+        saving_growth: 7.5,
+        payg_monthly0: 140,
+        payg_growth: 2.5,
+        plan_years: 25,         // plan reference ends at 25, savings continue
+        battery_cost: 5000,
+        battery_years: [10, 20],
+        savings_rate: 4,
+        horizon: 30,
+        reinvest: false,
+        plan_ends_25: true,     // show that plan ends at 25
+        include_batt_cash: true,
+        loan_apr: 11.9,
+        loan_years: 15
+      },
+      loan: {
+        model: "SolarPlanLoan",
+        currency: "£",
+        principal: 16000,
+        saving0: 1500,
+        saving_growth: 7.5,
+        payg_monthly0: 140,
+        payg_growth: 2.5,
+        plan_years: 25,         // plan ends at 25, savings continue
+        battery_cost: 5000,
+        battery_years: [10, 20],
+        savings_rate: 4,
+        horizon: 30,
+        reinvest: false,
+        plan_ends_25: true,
+        include_batt_cash: true,
+        loan_apr: 11.9,
+        loan_years: 15
+      }
+    };
+
+    function applyPreset(kind) {
+      const p = PRESETS[kind] || PRESETS.paysave;
+      $("model").value = p.model;
+      $("currency").value = p.currency;
+      $("principal").value = p.principal;
+      $("saving0").value = p.saving0;
+      $("saving_growth").value = p.saving_growth;
+      $("payg_monthly0").value = p.payg_monthly0;
+      $("payg_growth").value = p.payg_growth;
+      $("plan_years").value = p.plan_years;
+      $("battery_cost").value = p.battery_cost;
+      $("battery_years").value = p.battery_years.join(",");
+      $("savings_rate").value = p.savings_rate;
+      $("horizon").value = p.horizon;
+      $("reinvest").checked = !!p.reinvest;
+      $("plan_ends_25").checked = !!p.plan_ends_25;
+      $("include_batt_cash").checked = !!p.include_batt_cash;
+      $("loan_apr").value = p.loan_apr;
+      $("loan_years").value = p.loan_years;
+
+      // Show/hide loan row
+      updateLoanVisibility();
+      toast("Preset applied");
+    }
+
+    function updateLoanVisibility() {
+      const isLoan = $("model").value === "SolarPlanLoan";
+      $("loanRow").classList.toggle("hidden", !isLoan);
+    }
+
+    function parseYears(v) {
+      return v
+        .split(/\s*,\s*/)
+        .map(x => parseInt(x, 10))
+        .filter(x => Number.isFinite(x))
+        .sort((a,b) => a - b);
+    }
+    function toNum(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    }
+    function toInt(v) {
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function buildPayload() {
+      const payload = {
+        client: $("client").value.trim() || undefined,
+        model: $("model").value,
+        currency: $("currency").value || "£",
+        principal: toNum($("principal").value),
+        saving0: toNum($("saving0").value),
+        saving_growth: toNum($("saving_growth").value),
+        payg_monthly0: toNum($("payg_monthly0").value),
+        payg_growth: toNum($("payg_growth").value),
+        plan_years: toInt($("plan_years").value),
+        battery_cost: toNum($("battery_cost").value),
+        battery_years: parseYears($("battery_years").value),
+        savings_rate: toNum($("savings_rate").value),
+        horizon: toInt($("horizon").value),
+        reinvest: $("reinvest").checked,
+        plan_ends_25: $("plan_ends_25").checked,
+        include_batt_cash: $("include_batt_cash").checked,
+        // Loan (optional)
+        loan_apr: toNum($("loan_apr").value),
+        loan_years: toInt($("loan_years").value)
+      };
+
+      // Compact JSON and token
+      const compact = JSON.stringify(payload);
+      $("jsonOut").textContent = compact;
+
+      const b64 = btoa(unescape(encodeURIComponent(compact)))
+        .replaceAll("+", "-")
+        .replaceAll("/", "_")
+        .replace(/=+$/, "");
+      const token = SOLARROI::${b64};
+      $("tokenOut").textContent = token;
+
+      return { compact, token };
+    }
+
+    // Simple toast
+    function toast(msg){
+      const el = document.createElement('div');
+      el.textContent = msg;
+      el.className = 'fixed bottom-4 right-4 bg-slate-900 text-white text-sm px-3 py-2 rounded-xl shadow';
+      document.body.appendChild(el);
+      setTimeout(()=> el.remove(), 1200);
+    }
+
+    // Events
+    $("build").addEventListener("click", buildPayload);
+    $("reset").addEventListener("click", () => { document.getElementById("form").reset(); updateLoanVisibility(); toast("Form reset"); });
+    $("applyPreset").addEventListener("click", () => applyPreset($("preset").value));
+    $("model").addEventListener("change", updateLoanVisibility);
+
+    $("copyJson").addEventListener("click", async () => {
+      const { compact } = buildPayload();
+      try { await navigator.clipboard.writeText(compact); toast("JSON copied"); } catch(e) { toast("Copy failed"); }
+    });
+    $("copyToken").addEventListener("click", async () => {
+      const { token } = buildPayload();
+      try { await navigator.clipboard.writeText(token); toast("String copied"); } catch(e) { toast("Copy failed"); }
+    });
+
+    $("decode").addEventListener("click", () => {
+      const raw = $("pasteIn").value.trim();
+      const b64 = raw.replace(/^SOLARROI::/, "").replace(/\s+/g, "");
+      try {
+        const pad = b64 + "===".slice((b64.length % 4) || 4);
+        const json = decodeURIComponent(escape(atob(pad.replaceAll("-","+").replaceAll("_","/"))));
+        $("decoded").textContent = json;
+      } catch (e) {
+        $("decoded").textContent = "Invalid token";
+      }
+    });
+
+    // Init
+    applyPreset("paysave");
+    buildPayload();
+    updateLoanVisibility();
+  </script>
+</body>
+</html>
